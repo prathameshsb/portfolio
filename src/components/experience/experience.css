@@ -180,4 +180,12 @@
         border-radius: 3px;
         font-weight: bold;
     }
+
+    .Mumbailogo {
+        box-shadow: 0 6px #5c5c5c, 5px 0 black;
+        border: 2px solid;
+        border-image: linear-gradient(to right, #5c5c5c 40%, black) 1;
+        transform: translate(-5px, -5px);
+        border-radius: 5px;
+    }
 }
