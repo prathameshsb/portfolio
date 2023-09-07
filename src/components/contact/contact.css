@@ -38,6 +38,7 @@
 
 .social-icon {
     width: 25px;
+    border-radius: 50%;
 }
 
 .social:hover {

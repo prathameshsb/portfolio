@@ -40,20 +40,24 @@ function Contact() {
         </div>
         <div className="social-container">
         <div className="social">
-            <img className="social-icon" src={linkedin} alt="linkedin-logo" />
+            <a target="_blank" rel="noreferrer" href='https://www.linkedin.com/in/bprathamesh'>
+                <img className="social-icon" src={linkedin} alt="linkedin-logo" />
+            </a>
         </div>
         <div className="social">
-            <img className="social-icon" src={githubIcon} alt="github-logo" />
+            <a target="_blank" rel="noreferrer" href='https://github.com/prathameshsb'>
+                <img className="social-icon" src={githubIcon} alt="github-logo" />
+            </a>
         </div>
         <div className="social">
-            <img className="social-icon" src={fbIcon} alt="facebook-logo" />
+            <a target="_blank" rel="noreferrer" href='https://www.facebook.com/prathamesh.borgharkar/'>
+                <img className="social-icon" src={fbIcon} alt="facebook-logo" />
+            </a>
         </div>
         <div className="social">
-            <img
-            className="social-icon"
-            src={instagram}
-            alt="instagram-logo"
-            />
+            <a target="_blank" rel="noreferrer" href='https://www.instagram.com/prathameshsb/'>
+                <img className="social-icon" src={instagram} alt="instagram-logo"/>
+            </a>
         </div>
         </div>
     </section>
