@@ -1,0 +1,88 @@
+.about-content {
+    margin: 0px auto;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-evenly;
+    margin-top: -70px;
+}
+
+.about-text-content {
+  width: 70%;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.5;
+  align-items: center;
+  justify-content: center;
+}
+
+.about-image-holder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.rickshaw-animation {
+    display: flex;
+    justify-content: row;
+}
+
+.rickshaw {
+    width: 100px;
+    display: flex;
+    align-self: flex-end;
+    animation: bounce-in-left 5s linear infinite;
+}
+
+@keyframes bounce-in-left {
+    0% {
+        transform: translateX(-500px);
+    }
+
+    100% {
+        transform: translateX(200px);
+    }
+}
+
+.red{
+  color: red;
+  padding-right: 10px
+}
+@media (max-width: 768px) {
+    .about-content {
+        flex-direction: column-reverse;
+        margin: 20px auto;
+    }
+
+    .about-container {
+        margin-top: -80px;
+    }
+
+    .about-text-content {
+        width: 100%;
+        padding: 0;
+    }
+
+    .rickshaw {
+        width: 165px;
+        display: flex;
+        align-self: center;
+        margin-top: -80px;
+        margin-left: -50px
+    }
+}
+
+@media (max-width: 425px) {
+    .about-content {
+        flex-direction: column-reverse;
+    }
+
+    .about-container {
+        margin-top: -50px;
+        margin-left: 0px;
+    }
+
+    .rickshaw {
+        width: 135px;
+        margin-top: -50px;
+    }
+}

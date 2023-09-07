@@ -1,0 +1,32 @@
+.footer {
+    background-color: black;
+    color: white;
+    width: 100%;
+    padding: 0;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.bottom-adjust {
+    background-color: black;
+    height: 15vh;
+}
+
+@media (max-width: 768px) {
+    .bottom-adjust {
+        height: 18vh;
+    }
+}
+
+@media (max-width: 425px) {
+    .footer {
+        height: 60px;
+        font-size: 14px;
+    }
+
+    .bottom-adjust {
+        height: 15vh;
+    }
+}
