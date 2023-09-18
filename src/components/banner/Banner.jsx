@@ -1,6 +1,7 @@
 import React from 'react';
 import prathameshSVG from "../../assests/prathamesh-banner.png";
 import ramen from '../../assests/random/ramen.svg';
+import TxtRotate from './TxtRotate';
 import "./banner.css";
 
 export default function Banner() {
@@ -17,7 +18,7 @@ export default function Banner() {
 
             <div>
             <h2 className="front-end">
-                Front-End <b>Engineer</b>
+                <TxtRotate toRotate={['Front-End', 'Full-Stack', 'Software']} period="2000" /> <b>Engineer</b>
             </h2>
             </div>
             <div className="name-exp">
