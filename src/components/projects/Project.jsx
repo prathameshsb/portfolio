@@ -53,7 +53,7 @@ function Project() {
                     type="button"
                     onClick={(e) => {
                         e.preventDefault();
-                        window.location.href='https://github.com/prathameshsb/shopping-cart-v2';
+                        window.location.href='https://face-detection-yaki.netlify.app/';
                     }}><BsGithub size={25} /> <b>Github</b> </button>
             </div>
             <p>React, Hooks, Firebase, Stripe</p>
