@@ -1,8 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect } from "react";
 
 const TxtRotate = ({ toRotate, period }) => {
   let loopNum = 0;
-  let txt = '';
+  let txt = "";
   let isDeleting = false;
 
   const tick = () => {
@@ -15,9 +15,9 @@ const TxtRotate = ({ toRotate, period }) => {
       txt = fullTxt.substring(0, txt.length + 1);
     }
 
-    const el = document.querySelector('.txt-rotate');
+    const el = document.querySelector(".txt-rotate");
     if (el) {
-      el.innerHTML = '<span class="wrap">' + txt + '</span>';
+      el.innerHTML = '<span class="wrap">' + txt + "</span>";
     }
 
     let delta = 400 - Math.random() * 100; // slow down the animation by changing 400
@@ -29,7 +29,7 @@ const TxtRotate = ({ toRotate, period }) => {
     if (!isDeleting && txt === fullTxt) {
       delta = 3000;
       isDeleting = true;
-    } else if (isDeleting && txt === '') {
+    } else if (isDeleting && txt === "") {
       isDeleting = false;
       loopNum++;
       delta = 100; // adjust the speed after pause.
