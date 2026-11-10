@@ -64,6 +64,7 @@ function displayLabel(raw: string): string {
     "findem-checkout-flow": "Fulfillment workflow", "findem-password-validator": "Password Validator",
     "gryphon-sales-analytics": "Gryphon Sales Analytics", "nexa": "Nexa", "nexa-design-system": "Nexa Design System",
     "incluvie": "Incluvie", "flexrent": "Flexrent", "snapkart": "Snapkart", "non-project pages": "Other pages",
+    "portfolio": "Portfolio home", "interaction-motion": "Interaction & Motion (work listing)",
     "nav.about": "About navigation", "nav.home": "Home navigation", "nav.resume": "Resume navigation",
   };
   return names[raw] || names[raw.replace(/^\/projects\//, "")] || raw;
@@ -121,15 +122,36 @@ function BreakdownTable({ title, rows, intervalAvailable }: { title: string; row
   </details>;
 }
 
+const resumeCampaigns: Record<string, string> = {
+  "product-design-san-jose": "Product Design · San Jose",
+  "product-design-new-york": "Product Design · New York",
+  "design-engineering-san-jose": "Design Engineering · San Jose",
+  "design-engineering-new-york": "Design Engineering · New York",
+};
+
+function sessionTitle(session: SessionJourney): string {
+  if (session.source === "resume") return `Resume visit · ${resumeCampaigns[session.campaign || ""] || session.campaign || "Unspecified version"}`;
+  if (session.attribution === "recipient-link") return `Recipient-link session · ${session.sessionId.slice(0, 8)}`;
+  if (session.source) return `${session.source} visit · ${session.sessionId.slice(0, 8)}`;
+  return `Direct / untagged visit · ${session.sessionId.slice(0, 8)}`;
+}
+
+function resumeEntryLabel(session: SessionJourney): string {
+  const target = session.events.find(event => event.type === "page_view" && event.targetId?.startsWith("resume.entry."))?.targetId;
+  return target ? displayLabel(target.slice("resume.entry.".length)) : displayLabel(session.events.find(event => event.type === "page_view")?.route || session.events[0]?.route || "/");
+}
+
 function SessionDetails({ session, intervalAvailable }: { session: SessionJourney; intervalAvailable: boolean }) {
   const [open, setOpen] = useState(false);
   return <details className={styles.session} onToggle={(event) => setOpen(event.currentTarget.open)}>
-    <summary><span>{session.attribution === "recipient-link" ? "Recipient-link session" : "Anonymous session"} · {session.sessionId.slice(0, 8)}</span>
-      <span className={styles.sessionOverview}>{session.source || "direct / untagged"}<span>{session.events.length}{session.eventsTruncated ? "+" : ""} events · {activeTime(intervalAvailable ? session.activeMs : session.legacyActiveMs)} {intervalAvailable ? "interval" : "tracked max"}</span></span>
+    <summary><span>{sessionTitle(session)}</span>
+      <span className={styles.sessionOverview}>{session.source === "resume" ? resumeEntryLabel(session) : session.source || "direct / untagged"}<span>{session.events.length}{session.eventsTruncated ? "+" : ""} events · {activeTime(intervalAvailable ? session.activeMs : session.legacyActiveMs)} {intervalAvailable ? "interval" : "tracked max"}</span></span>
       <span className={styles.muted}>{utc(session.firstSeen)}</span>
     </summary>
     {open && <div className={styles.sessionBody}>
       <dl className={styles.sessionMetadata}>
+        {session.source === "resume" && <div><dt>Resume entry link</dt><dd>{resumeEntryLabel(session)}</dd></div>}
+        {session.source === "resume" && <div><dt>Resume version</dt><dd>{resumeCampaigns[session.campaign || ""] || session.campaign || "Unspecified version"} — identifies the resume link used, not the person who opened it.</dd></div>}
         <div><dt>Session ID</dt><dd>{session.sessionId}</dd></div>
         <div><dt>Origin</dt><dd>{session.origin}</dd></div>
         <div><dt>Source / campaign</dt><dd>{session.source || "direct / untagged"} / {session.campaign || "untagged"}</dd></div>
@@ -367,7 +389,7 @@ export default function Dashboard() {
         {!warnings.length && <p className={styles.coverageNote}>No source warnings were returned. Consent, blockers and offline visits can still leave gaps.</p>}
         {(!intervalAvailable || report.summary.legacyActiveMs > 0) && <details className={styles.coverage} aria-label="Tracked active time coverage"><summary>How to read tracked time</summary><p>Historical visible-tab timing can include idle time; newer tracking requires focus and recent input. This sums the largest tracked value in each matching session. A filtered session maximum may include earlier session activity. These values do not prove attention.</p>{!intervalAvailable && <p>Interval active-time deltas are unavailable for this tracker source, so they are omitted from summaries, breakdowns and journeys.</p>}</details>}
       </section>
-      {report.summary.events > 0 && <section className={styles.journeys} id="journeys" aria-label="Session journeys"><div className={styles.sectionHeading}><div><p className={styles.eyebrow}>OPTIONAL DEEP DIVE</p><h2>Session journeys</h2></div><span className={styles.smallBadge}>{report.sessions.length}{report.sessionsTruncated ? "+" : ""} in this view</span></div><p className={styles.muted}>Open a session to follow its matching events. Coded links establish link usage, not visitor identity.</p>
+      {report.summary.events > 0 && <section className={styles.journeys} id="journeys" aria-label="Session journeys"><div className={styles.sectionHeading}><div><p className={styles.eyebrow}>OPTIONAL DEEP DIVE</p><h2>Session journeys</h2></div><span className={styles.smallBadge}>{report.sessions.length}{report.sessionsTruncated ? "+" : ""} in this view</span></div><p className={styles.muted}>Open a session to follow its matching events. Resume tags identify the document version, not the reader’s identity or location. Other coded links establish link usage, not visitor identity.</p>
         {(report.sessionsTruncated || report.sessions.some(session => session.eventsTruncated)) && <p className={styles.notice}>Partial journeys: the view is limited to 100 sessions and 500 matching events per session. Summary totals include all matching events.</p>}
         {!report.sessions.length ? <p className={styles.coverageNote}>No session journeys are available for these recorded events.</p> : <div className={styles.sessionGrid}>{shownSessions?.map(session => <SessionDetails key={`${session.origin}:${session.sessionId}`} session={session} intervalAvailable={intervalAvailable} />)}</div>}
         {report.sessions.length > 6 && <button className={styles.showMore} onClick={() => setShowAllSessions(value => !value)}>{showAllSessions ? "Show fewer sessions" : `Show all ${report.sessions.length} sessions`}</button>}

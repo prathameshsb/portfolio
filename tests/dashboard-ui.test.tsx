@@ -94,7 +94,7 @@ describe("owner dashboard states and filters", () => {
     render(<Dashboard />);
     await screen.findByText("Tracked time");
     expect(screen.queryByRole("columnheader", { name: "Active time (interval deltas)" })).toBeNull();
-    const details = screen.getByText(/Anonymous session ·/).closest("details")!;
+    const details = screen.getByText(/Resume visit ·/).closest("details")!;
     details.open = true;
     fireEvent(details, new Event("toggle"));
     expect(await screen.findByText("Tracked active time (session maximum)")).toBeTruthy();
@@ -148,6 +148,19 @@ describe("owner dashboard states and filters", () => {
     vi.useRealTimers();
   });
 
+  it("labels resume visits with their role, location and landing case instead of anonymous identity", async () => {
+    fetchMock.mockResolvedValue(Response.json(report({
+      summary: { ...report().summary, events: 1, sessions: 1 },
+      sessions: [{ origin: "https://synthetic-test.example.com", sessionId: "synthetic-resume-session", firstSeen: "2026-11-10T12:00:00.000Z", lastSeen: "2026-11-10T12:00:00.000Z", source: "resume", campaign: "product-design-new-york", recipientToken: null, attribution: "anonymous", traffic: "visitor", activeMs: 0, legacyActiveMs: 0, eventsTruncated: false, events: [{ eventId: "synthetic-resume-event", type: "page_view", occurredAt: "2026-11-10T12:00:00.000Z", route: "/projects/findem-query-insights-hub", projectId: "findem-query-insights-hub", targetId: null, activeMs: null, scrollDepth: null }] }],
+    })));
+    render(<Dashboard />);
+    const title = await screen.findByText("Resume visit · Product Design · New York");
+    expect(screen.queryByText(/^Anonymous session ·/)).toBeNull();
+    expect(within(title.closest("summary")!).getByText("Query Insights Hub")).toBeTruthy();
+    const details=title.closest("details")!;details.open=true;fireEvent(details,new Event("toggle"));
+    expect(await screen.findByText(/identifies the resume link used, not the person/)).toBeTruthy();
+  });
+
   it("preserves edited filters through backend failure and retry", async () => {
     fetchMock.mockResolvedValueOnce(Response.json(report()));
     render(<Dashboard />);
@@ -189,10 +202,10 @@ describe("owner dashboard states and filters", () => {
       }],
     })));
     render(<Dashboard />);
-    await screen.findByText(/Recipient-link session ·/);
+    await screen.findByText(/Resume visit · Unspecified version/);
     expect(screen.getByText(/Partial journeys: the view is limited/)).toBeTruthy();
     expect(screen.queryByText(/synthetic-link-token/)).toBeNull();
-    const details = screen.getByText(/Recipient-link session ·/).closest("details")!;
+    const details = screen.getByText(/Resume visit · Unspecified version/).closest("details")!;
     details.open = true;
     fireEvent(details, new Event("toggle"));
     expect(await screen.findByText(/identifies the issued link, not the person who opened it/)).toBeTruthy();

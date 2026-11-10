@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import type { EventInput } from '@/lib/analytics/schema';
 import { EventQueue, type EventAcknowledgement } from '@/lib/analytics/queue';
 
@@ -10,6 +10,8 @@ const STORAGE_KEY = 'portfolio-events-v2';
 const SESSION_KEY = 'portfolio-session-v2';
 const SESSION_IDLE_MS = 30 * 60 * 1000;
 const ACTIVE_IDLE_MS = 30_000;
+const RESUME_ENTRY_CONTENT = new Set(['portfolio', 'interaction-motion', ...Array.from(PUBLIC_ROUTES).filter((route) => route.startsWith('/projects/')).map((route) => route.slice('/projects/'.length))]);
+const ATTRIBUTION_PARAMS = [['source', 'utm_source'], ['medium', 'utm_medium'], ['campaign', 'utm_campaign'], ['recipientToken', 'recipient']] as const;
 let browserQueue: EventQueue | undefined;
 
 function isOptedOut() {
@@ -18,26 +20,40 @@ function isOptedOut() {
   } catch { return true; }
 }
 
-function attribution() {
-  const params = new URLSearchParams(location.search);
+function attributionQuery(params: { get: (name: string) => string | null }): string {
+  const result = new URLSearchParams();
+  for (const [key, query] of ATTRIBUTION_PARAMS) {
+    const value = params.get(query);
+    if (value && new RegExp(`^[a-zA-Z0-9._~-]{1,${key === 'recipientToken' ? 64 : 80}}$`).test(value)) result.set(query, value);
+  }
+  const content = params.get('utm_content');
+  if (result.get('utm_source') === 'resume' && content && RESUME_ENTRY_CONTENT.has(content)) result.set('utm_content', content);
+  return result.toString();
+}
+
+function attribution(search: string) {
+  const params = new URLSearchParams(search);
   const result: NonNullable<EventInput['attribution']> = {};
-  for (const [key, query] of [['source', 'utm_source'], ['medium', 'utm_medium'], ['campaign', 'utm_campaign'], ['recipientToken', 'recipient']] as const) {
+  for (const [key, query] of ATTRIBUTION_PARAMS) {
     const value = params.get(query);
     if (value && new RegExp(`^[a-zA-Z0-9._~-]{1,${key === 'recipientToken' ? 64 : 80}}$`).test(value)) result[key] = value;
   }
+  const explicit = { ...result };
   if (!result.source && document.referrer) {
     try {
       const referrer = new URL(document.referrer);
       if (referrer.origin !== location.origin && referrer.hostname.length <= 80 && /^[a-zA-Z0-9.-]+$/.test(referrer.hostname)) {
-        result.source = referrer.hostname; result.medium = 'referral';
+        result.source = referrer.hostname; result.medium ||= 'referral';
       }
     } catch { /* Ignore malformed referrers; never retain their paths or queries. */ }
   }
-  return result;
+  return { values: result, explicit };
 }
 
 export function AnalyticsCollector() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const entryQuery = attributionQuery(searchParams);
 
   useEffect(() => {
     if (process.env.NEXT_PUBLIC_ANALYTICS_ENABLED !== 'true' || !PUBLIC_ROUTES.has(pathname)) return;
@@ -53,7 +69,9 @@ export function AnalyticsCollector() {
       queue.resume();
     } catch { return; }
 
-    let trackingAttribution = attribution();
+    const entryAttribution = attribution(entryQuery);
+    const resumeEntryContent = new URLSearchParams(entryQuery).get('utm_content');
+    let trackingAttribution = entryAttribution.values;
     let traffic: EventInput['traffic'] = 'visitor';
     try { const configured = localStorage.getItem('portfolio-analytics-traffic'); if (configured === 'owner' || configured === 'test') traffic = configured; } catch { /* Default remains anonymous visitor traffic. */ }
     let sessionId: string = crypto.randomUUID();
@@ -76,15 +94,19 @@ export function AnalyticsCollector() {
     try {
       const previous: unknown = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
       if (previous && typeof previous === 'object' && 'id' in previous && 'at' in previous && typeof previous.id === 'string' && /^[a-f0-9-]{36}$/i.test(previous.id) && typeof previous.at === 'number' && Date.now() - previous.at < SESSION_IDLE_MS) {
-        sessionId = previous.id;
-        if ('totalActiveMs' in previous && typeof previous.totalActiveMs === 'number' && Number.isInteger(previous.totalActiveMs) && previous.totalActiveMs >= 0 && previous.totalActiveMs <= 21_600_000) totalActiveMs = previous.totalActiveMs;
+        const saved: NonNullable<EventInput['attribution']> = {};
         if ('attribution' in previous && previous.attribution && typeof previous.attribution === 'object') {
-          const saved: NonNullable<EventInput['attribution']> = {};
           for (const key of ['source', 'medium', 'campaign', 'recipientToken'] as const) {
             const value = (previous.attribution as Record<string, unknown>)[key];
             if (typeof value === 'string' && new RegExp(`^[a-zA-Z0-9._~-]{1,${key === 'recipientToken' ? 64 : 80}}$`).test(value)) saved[key] = value;
           }
+        }
+        const changedEntry = (Object.keys(entryAttribution.explicit) as Array<keyof typeof saved>)
+          .some((key) => entryAttribution.explicit[key] !== saved[key]);
+        if (!changedEntry) {
+          sessionId = previous.id;
           trackingAttribution = saved;
+          if ('totalActiveMs' in previous && typeof previous.totalActiveMs === 'number' && Number.isInteger(previous.totalActiveMs) && previous.totalActiveMs >= 0 && previous.totalActiveMs <= 21_600_000) totalActiveMs = previous.totalActiveMs;
         }
       }
     } catch { /* A malformed or unavailable session starts a new anonymous session. */ }
@@ -192,7 +214,7 @@ export function AnalyticsCollector() {
     function pageShow() { didExit = false; lastTick = Date.now(); queue.resume(); schedule(); }
 
     persistSession();
-    emit({ type: 'page_view' });
+    emit({ type: 'page_view', ...(resumeEntryContent ? { targetId: `resume.entry.${resumeEntryContent}` } : {}) });
     schedule();
     const timer = setInterval(tick, 1000);
     document.addEventListener('click', click);
@@ -216,7 +238,7 @@ export function AnalyticsCollector() {
       window.removeEventListener('pagehide', exit);
       window.removeEventListener('pageshow', pageShow);
     };
-  }, [pathname]);
+  }, [pathname, entryQuery]);
 
   return null;
 }

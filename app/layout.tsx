@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { PublicShell } from '@/components/site/PublicShell';
 import { AnalyticsCollector } from '@/components/analytics/AnalyticsCollector';
 import { SourceMotion } from '@/components/site/SourceMotion';
@@ -19,6 +20,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <main id="main">{children}</main>
     <PublicShell />
     <SourceMotion />
-    <AnalyticsCollector />
+    <Suspense fallback={null}><AnalyticsCollector /></Suspense>
   </body></html>;
 }
