@@ -1,0 +1,21 @@
+.portfolio-reflection-stack { --reflection-top: 120px; }
+.framer-11dFB .portfolio-reflection-stack > [data-framer-name="card"] { position: sticky; top: calc(var(--reflection-top) + var(--reflection-offset, 0px)); }
+@media (max-width: 767.98px) { .portfolio-reflection-stack { --reflection-top: 160px; } }
+.portfolio-greeting { position: relative; width: 100%; height: 180px; overflow: visible; font: 900 90px/180px Raleway, sans-serif; font-feature-settings: 'ss01' on, 'ss10' on, 'ss11' on, 'ss02' on, 'ss03' on, 'ss04' on, 'ss06' on, 'ss05' on, 'ss07' on, 'ss08' on, 'ss09' on, 'salt' on; color: #999; }
+.portfolio-greeting-line { position: absolute; top: 0; left: 0; display: inline-flex; white-space: pre; overflow: hidden; }
+.portfolio-greeting-line > span { display: inline-block; }
+.portfolio-greeting-line .greeting-enter { animation: greeting-enter 1.375s cubic-bezier(.11,.72,0,1) both; }
+.portfolio-greeting-line .greeting-exit { animation: greeting-exit 1.375s cubic-bezier(.11,.72,0,1) both; }
+@keyframes greeting-enter { from { transform: translateY(150%); } to { transform: translateY(0); } }
+@keyframes greeting-exit { from { transform: translateY(0); } to { transform: translateY(-150%); } }
+.portfolio-filter-pill { display: flex; align-items: center; max-width: 100%; min-width: 0; width: max-content; padding: 4px; border: 1px solid #4f4f4f; border-radius: 999px; box-sizing: border-box; }
+.portfolio-filter-scroll { display: flex; align-items: center; min-width: 0; overflow: auto hidden; scrollbar-width: none; border-radius: 999px; }
+.portfolio-primary-views,.portfolio-filter-categories { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.portfolio-filter-categories { padding-left: 4px; }
+.portfolio-project-filter button { appearance: none; border: 0; border-radius: 999px; background: transparent; color: #fff; min-height: 44px; flex-shrink: 0; padding: 10px 20px; font: inherit; line-height: 20px; cursor: pointer; white-space: nowrap; }
+.portfolio-project-filter button[aria-pressed=true] { background: #fff; color: #191919; }
+.portfolio-project-filter .portfolio-filter-expand { width: 44px; padding: 0; display: grid; place-items: center; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.portfolio-lottie-character { width: 100%; height: 100%; min-height: 26px; }
+@media (min-width: 768px) and (max-width: 1199.98px) { .portfolio-greeting { height: 126px; line-height: 126px; } }
+@media (max-width: 767.98px) { .portfolio-greeting { height: 105px; font-size: 70px; line-height: 105px; } }

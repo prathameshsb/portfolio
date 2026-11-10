@@ -1,0 +1,6 @@
+[data-portfolio-read-next] [data-read-next-link]{transition:background-color 180ms ease,color 180ms ease}
+[data-portfolio-read-next] [data-read-next-link]:is(:hover,:focus-visible),
+[data-portfolio-read-next] [data-read-next-link]:is(:hover,:focus-visible) [data-read-next-surface]{background-color:#fff!important}
+[data-portfolio-read-next] [data-read-next-link]:is(:hover,:focus-visible),
+[data-portfolio-read-next] [data-read-next-link]:is(:hover,:focus-visible) *{color:#191919!important;-webkit-text-fill-color:#191919!important;--framer-text-color:#191919!important;--framer-link-text-color:#191919!important;--extracted-r6o4lv:#191919!important}
+@media(prefers-reduced-motion:reduce){[data-portfolio-read-next] [data-read-next-link]{transition:none}}

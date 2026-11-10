@@ -1,0 +1,26 @@
+[build]
+command = "npm run build"
+publish = ".next"
+
+[build.environment]
+NODE_VERSION = "24"
+
+[functions]
+node_bundler = "esbuild"
+
+[context.deploy-preview.environment]
+NEXT_PUBLIC_ANALYTICS_ENABLED = "false"
+
+[context.branch-deploy.environment]
+NEXT_PUBLIC_ANALYTICS_ENABLED = "false"
+
+[[headers]]
+for = "/assets/*"
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+for = "/owner*"
+[headers.values]
+Cache-Control = "private, no-store"
+X-Robots-Tag = "noindex, nofollow, noarchive"

@@ -1,0 +1,18 @@
+html { background: #191919; color: #fff; scroll-behavior: smooth; }
+body { margin: 0; background: #191919; color: #fff; font-family: Inconsolata, monospace; }
+* { box-sizing: border-box; }
+:focus-visible { outline: 2px solid #d7bd56; outline-offset: 4px; }
+.skip-link { position: fixed; left: 16px; top: -100px; z-index: 10000; padding: 12px 16px; background: #fff; color: #191919; border-radius: 8px; }
+.skip-link:focus { top: 12px; }
+.site-floating-nav { position: fixed; z-index: 100; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; gap: 15px; width: 300px; height: 46px; padding: 10px 20px; border-radius: 100px; background: radial-gradient(50% 50%,#303030 0%,#262626 100%); font: 900 22px/22px Raleway, sans-serif; }
+.site-floating-nav a { display: inline-block; color: #fff; text-decoration: none; transform-origin: center; transition: transform 160ms ease-out; }
+.site-floating-nav a:last-child { color: #ccac1f; }
+.resume-shimmer { background: linear-gradient(90deg, transparent 0%, transparent 41%, #d1d1cf 50%, transparent 59%, transparent 100%) #ccac1f; background-size: 200% 200%; background-clip: text; -webkit-background-clip: text; color: transparent; animation: resume-shimmer 5s linear infinite; }
+@keyframes resume-shimmer { from { background-position: 200% 0; } to { background-position: -100% 0; } }
+.site-floating-nav a:is(:hover, :focus-visible) { transform: scale(1.08); }
+.page-not-found { max-width: 800px; padding: 120px 24px; margin: auto; min-height: 80vh; }
+.page-not-found h1 { font: 900 48px/1.1 Raleway, sans-serif; }
+.page-not-found a { color: inherit; }
+@media (max-width: 767.98px) { .site-floating-nav { width: max-content; height: auto; padding: 10px 14px; font-size: 16px; line-height: 19.2px; } .site-floating-nav a:last-child { width: 64px; flex: none; text-align: center; line-height: 16px; } .resume-shimmer { background-image: linear-gradient(90deg, transparent 0%, transparent 47%, #d1d1cf 50%, transparent 53%, transparent 100%); } }
+@media (prefers-reduced-motion: reduce) { .resume-shimmer { animation: none; background-image: none; } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
