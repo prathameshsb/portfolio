@@ -300,14 +300,14 @@ export default function Dashboard() {
       <div className={styles.filterRow}>
         <label>From (UTC)<input type="date" required value={filters.from} onChange={(event) => updateFilter("from", event.target.value)} /></label>
         <label>Through (UTC, inclusive)<input type="date" required value={filters.to} onChange={(event) => updateFilter("to", event.target.value)} /></label>
-        <label>Traffic<select value={filters.traffic} onChange={(event) => updateFilter("traffic", event.target.value as Filters["traffic"])}><option value="visitor">Visitors — excludes owner/test</option><option value="owner">Owner only</option><option value="test">Test only</option><option value="all">All traffic — includes owner/test</option></select></label>
+        <label>Traffic<select aria-label="Traffic" value={filters.traffic} onChange={(event) => updateFilter("traffic", event.target.value as Filters["traffic"])}><option value="visitor">Visitors — excludes owner/test</option><option value="owner">Owner only</option><option value="test">Test only</option><option value="all">All traffic — includes owner/test</option></select></label>
         <button className={styles.primary} type="submit" disabled={state === "loading"}>Apply filters</button>
       </div>
       <details className={styles.advancedFilters}><summary>More filters <span>Source, campaign, project & environment</span></summary><div className={styles.filterRow}>
         <label>Source<input value={filters.source} maxLength={80} pattern="[a-zA-Z0-9._~-]+" list="analytics-sources" placeholder="All sources" onChange={(event) => updateFilter("source", event.target.value)} /></label>
         <label>Campaign<input value={filters.campaign} maxLength={80} pattern="[a-zA-Z0-9._~-]+" list="analytics-campaigns" placeholder="All campaigns" onChange={(event) => updateFilter("campaign", event.target.value)} /></label>
-        <label className={styles.projectFilter}>Project<select value={filters.project} onChange={(event) => updateFilter("project", event.target.value)}><option value="">All projects and pages</option>{PROJECT_IDS.map((value) => <option key={value} value={value}>{value.replaceAll("-", " ")}</option>)}</select></label>
-        <label>Environment<select value={filters.environment} onChange={(event) => updateFilter("environment", event.target.value as Filters["environment"])}>{ENVIRONMENTS.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+        <label className={styles.projectFilter}>Project<select aria-label="Project" value={filters.project} onChange={(event) => updateFilter("project", event.target.value)}><option value="">All projects and pages</option>{PROJECT_IDS.map((value) => <option key={value} value={value}>{value.replaceAll("-", " ")}</option>)}</select></label>
+        <label>Environment<select aria-label="Environment" value={filters.environment} onChange={(event) => updateFilter("environment", event.target.value as Filters["environment"])}>{ENVIRONMENTS.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
       </div></details>
       <datalist id="analytics-sources">{report?.sources.filter((row) => /^[a-zA-Z0-9._~-]+$/.test(row.label)).map((row) => <option key={row.label} value={row.label} />)}</datalist>
       <datalist id="analytics-campaigns">{report?.campaigns.filter((row) => row.label !== "untagged" && /^[a-zA-Z0-9._~-]+$/.test(row.label)).map((row) => <option key={row.label} value={row.label} />)}</datalist>
