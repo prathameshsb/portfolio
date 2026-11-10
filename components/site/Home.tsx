@@ -7,6 +7,7 @@ import phoneLayouts from '@/data/home-layout-kf.json';
 import { NativeContent } from '@/components/content/NativeContent';
 import { assertNativeNode, type NativeNode } from '@/lib/content/types';
 import { DotVideo } from './DotVideo';
+import { DesignGradient } from './DesignGradient';
 import { ReadNext, SocialLinks } from '@/components/case-study/ReadNext';
 import './social-interactions.css';
 import './home-interactions.css';
@@ -277,6 +278,7 @@ export function Home() {
   function mediaOverride(node: NativeNode): ReactNode | undefined {
     if (node.attrs?.className === 'framer-1avkvq3') return <div {...node.attrs}><Greeting /></div>;
     if (node.attrs?.className === 'framer-1rwpzs6-container' || node.attrs?.className === 'framer-12tomyq-container') return <div {...node.attrs} style={node.style}><LottieCharacter /></div>;
+    if (node.attrs?.id === 'gradientCanvas') return <DesignGradient />;
     if (node.tag === 'canvas' && node.attrs?.width === '0') return <DotVideo />;
     return undefined;
   }
