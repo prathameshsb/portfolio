@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import styles from "../../components/analytics/Dashboard.module.css";
 
@@ -48,13 +49,15 @@ export default function OwnerLogin() {
     } catch { setMessage("Owner login is unavailable. Retry shortly."); }
     finally { setBusy(false); }
   }
-  return <section className={styles.dashboard} aria-label="Owner access">
-    <header className={styles.header}><div><p className={styles.eyebrow}>Private workspace</p><h1>Owner login</h1><p>Sign in to view the existing portfolio tracker.</p></div></header>
-    <form className={styles.filters} onSubmit={submit} aria-label="Owner login">
+  return <section className={`${styles.dashboard} ${styles.loginPage}`} aria-label="Owner access"><div className={styles.loginCard}>
+    <div className={styles.brand}><span>PS</span><div>Portfolio<span>Owner workspace</span></div></div>
+    <p className={styles.eyebrow}>A LITTLE MORE PERSPECTIVE</p><h1>Owner login</h1><p>See how your portfolio is being explored.</p>
+    <form className={styles.loginForm} onSubmit={submit} aria-label="Owner login">
       <label>Password<input type="password" autoComplete="current-password" required maxLength={1024} value={password} onChange={(event) => setPassword(event.target.value)} disabled={!ready || busy} /></label>
       <button className={styles.primary} type="submit" disabled={!ready || busy}>{busy ? "Signing in…" : "Sign in"}</button>
       {message && <p role="status" className={styles.formError}>{message}</p>}
       {!ready && <button type="button" onClick={() => setRetry((value) => value + 1)}>Refresh login</button>}
     </form>
-  </section>;
+    <p className={styles.loginFoot}>Your private view of visits, clicks and the work people explore.</p><Link className={styles.loginBack} href="/">← Back to portfolio</Link>
+    </div></section>;
 }

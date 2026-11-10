@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
@@ -6,6 +7,8 @@ import type { AnalyticsReport, Breakdown, SessionJourney } from "../../lib/analy
 import { ENVIRONMENTS, PROJECT_IDS } from "../../lib/analytics/schema";
 import styles from "./Dashboard.module.css";
 import BreakdownChart from "./BreakdownChart";
+import ActivityChart from "./ActivityChart";
+import SourceChart from "./SourceChart";
 
 type Filters = {
   from: string;
@@ -55,6 +58,17 @@ function utc(value: string | null): string {
   return value ? `${new Date(value).toISOString().replace("T", " ").slice(0, 19)} UTC` : "No received events";
 }
 
+function displayLabel(raw: string): string {
+  const names: Record<string, string> = {
+    "/": "Home", "/about": "About", "findem-query-insights-hub": "Query Insights Hub",
+    "findem-checkout-flow": "Fulfillment workflow", "findem-password-validator": "Password Validator",
+    "gryphon-sales-analytics": "Gryphon Sales Analytics", "nexa": "Nexa", "nexa-design-system": "Nexa Design System",
+    "incluvie": "Incluvie", "flexrent": "Flexrent", "snapkart": "Snapkart", "non-project pages": "Other pages",
+    "nav.about": "About navigation", "nav.home": "Home navigation", "nav.resume": "Resume navigation",
+  };
+  return names[raw] || names[raw.replace(/^\/projects\//, "")] || raw;
+}
+
 const count = z.number().finite().nonnegative();
 const timestamp = z.iso.datetime({ offset: true });
 const breakdown = z.object({
@@ -71,6 +85,7 @@ const reportSchema = z.object({
     events: count, sessions: count, pageViews: count, clicks: count,
     activeMs: count, legacyActiveMs: count, attributedSessions: count, freshness: timestamp.nullable(),
   }),
+  dailyActivity: z.array(z.object({ date: z.iso.date(), pageViews: count, clicks: count, events: count })).optional(),
   sources: z.array(breakdown), campaigns: z.array(breakdown),
   projects: z.array(breakdown), pages: z.array(breakdown), targets: z.array(breakdown),
   sessions: z.array(z.object({
@@ -92,8 +107,8 @@ const reportSchema = z.object({
 });
 
 function BreakdownTable({ title, rows, intervalAvailable }: { title: string; rows: Breakdown[]; intervalAvailable: boolean }) {
-  return <section className={styles.panel} aria-label={title}>
-    <h2>{title}</h2>
+  return <details className={styles.panel} aria-label={title}>
+    <summary><span>{title}</span><span>{rows.length} groups</span></summary>
     {!rows.length ? <p className={styles.muted}>No matching activity in this breakdown.</p> :
       <div className={styles.tableWrap}><table>
         <thead><tr><th scope="col">Target</th><th scope="col">Events</th><th scope="col">Sessions</th><th scope="col">Clicks</th>{intervalAvailable && <th scope="col">Active time (interval deltas)</th>}<th scope="col">Max scroll</th></tr></thead>
@@ -103,7 +118,7 @@ function BreakdownTable({ title, rows, intervalAvailable }: { title: string; row
           {intervalAvailable && <td>{activeTime(row.activeMs)}</td>}<td>{row.maxScroll}%</td>
         </tr>)}</tbody>
       </table></div>}
-  </section>;
+  </details>;
 }
 
 function SessionDetails({ session, intervalAvailable }: { session: SessionJourney; intervalAvailable: boolean }) {
@@ -144,6 +159,7 @@ export default function Dashboard() {
   const [exportMessage, setExportMessage] = useState("");
   const [formError, setFormError] = useState("");
   const [logoutMessage, setLogoutMessage] = useState("");
+  const [showAllSessions, setShowAllSessions] = useState(false);
   const activeRequest = useRef<AbortController | null>(null);
   const reportQuery = useRef("");
 
@@ -188,7 +204,7 @@ export default function Dashboard() {
   }, [load]);
 
   function requestReport(query: string) {
-    setState("loading"); setReport(null); setError(""); setExportMessage("");
+    setState("loading"); setReport(null); setError(""); setExportMessage(""); setShowAllSessions(false);
     void load(query);
   }
 
@@ -256,77 +272,109 @@ export default function Dashboard() {
 
   const hasNarrowingFilter = !!(report?.filters.source || report?.filters.campaign || report?.filters.project);
   const intervalAvailable = report?.sourceMetadata?.backend !== "google-sheets";
+  const warnings = [...new Set([...(report?.sourceMetadata?.warnings || []), ...(report?.definitions.partialData ? [report.definitions.partialData] : [])])];
+  const needsAttention = warnings.length > 0 || (report?.sourceMetadata?.heldRows || 0) > 0;
+  const shownSessions = showAllSessions ? report?.sessions : report?.sessions.slice(0, 6);
+  function selectWindow(days: number) {
+    const today = new Date();
+    const through = today.toISOString().slice(0, 10);
+    const from = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - days + 1)).toISOString().slice(0, 10);
+    const next = { ...filters, from, to: through };
+    setFilters(next); setFormError(""); requestReport(dashboardFilterQuery(next));
+  }
   return <section className={styles.dashboard} aria-label="Portfolio analytics workspace">
-    <header className={styles.header}>
-      <div><p className={styles.eyebrow}>Private workspace</p><h1>Portfolio analytics</h1><p>Anonymous visits, click journeys and active engagement.</p></div>
-      <button className={styles.logout} onClick={() => void signOut()}>Sign out</button>
+    <aside className={styles.sidebar} aria-label="Dashboard navigation">
+      <a className={styles.brand} href="#overview"><span>PS</span><div>Portfolio<span>Owner workspace</span></div></a>
+      <p className={styles.navLabel}>YOUR WORKSPACE</p>
+      <nav><a href="#overview" className={styles.navActive}><span aria-hidden="true">◫</span> Overview</a><a href="#breakdowns"><span aria-hidden="true">▤</span> Breakdowns</a><a href="#journeys"><span aria-hidden="true">⌁</span> Session journeys</a><a href="#data-health"><span aria-hidden="true">◎</span> Data status</a></nav>
+      <div className={styles.sidebarBottom}><p>A little perspective on<br />how your work is seen.</p><Link href="/">View portfolio <span aria-hidden="true">↗</span></Link></div>
+    </aside>
+    <div className={styles.workspace}>
+    <header className={styles.header} id="overview">
+      <div><p className={styles.eyebrow}>YOUR PORTFOLIO / OVERVIEW</p><h1>Portfolio analytics</h1><p>A clearer picture of how visitors explore your work.</p></div>
+      <button className={styles.logout} onClick={() => void signOut()}>Sign out <span aria-hidden="true">↗</span></button>
     </header>
     {logoutMessage && <p className={styles.notice} role="alert">{logoutMessage}</p>}
     <form className={styles.filters} onSubmit={applyFilters} aria-label="Analytics filters">
-      <label>From (UTC)<input type="date" required value={filters.from} onChange={(event) => updateFilter("from", event.target.value)} /></label>
-      <label>Through (UTC, inclusive)<input type="date" required value={filters.to} onChange={(event) => updateFilter("to", event.target.value)} /></label>
-      <label>Environment<select value={filters.environment} onChange={(event) => updateFilter("environment", event.target.value as Filters["environment"])}>{ENVIRONMENTS.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
-      <label>Traffic<select value={filters.traffic} onChange={(event) => updateFilter("traffic", event.target.value as Filters["traffic"])}><option value="visitor">Visitors — excludes owner/test</option><option value="owner">Owner only</option><option value="test">Test only</option><option value="all">All traffic — includes owner/test</option></select></label>
-      <label>Source<input value={filters.source} maxLength={80} pattern="[a-zA-Z0-9._~-]+" list="analytics-sources" placeholder="All sources" onChange={(event) => updateFilter("source", event.target.value)} /></label>
-      <label>Campaign<input value={filters.campaign} maxLength={80} pattern="[a-zA-Z0-9._~-]+" list="analytics-campaigns" placeholder="All campaigns" onChange={(event) => updateFilter("campaign", event.target.value)} /></label>
-      <label className={styles.projectFilter}>Project<select value={filters.project} onChange={(event) => updateFilter("project", event.target.value)}><option value="">All projects and pages</option>{PROJECT_IDS.map((value) => <option key={value} value={value}>{value.replaceAll("-", " ")}</option>)}</select></label>
-      <button className={styles.primary} type="submit" disabled={state === "loading"}>Apply filters</button>
+      <div className={styles.filterHeading}><strong>Report window</strong><div className={styles.presets} aria-label="Quick date ranges">{[7, 30, 90].map(days => <button key={days} type="button" disabled={state === "loading"} onClick={() => selectWindow(days)}>Last {days} days</button>)}</div></div>
+      <div className={styles.filterRow}>
+        <label>From (UTC)<input type="date" required value={filters.from} onChange={(event) => updateFilter("from", event.target.value)} /></label>
+        <label>Through (UTC, inclusive)<input type="date" required value={filters.to} onChange={(event) => updateFilter("to", event.target.value)} /></label>
+        <label>Traffic<select value={filters.traffic} onChange={(event) => updateFilter("traffic", event.target.value as Filters["traffic"])}><option value="visitor">Visitors — excludes owner/test</option><option value="owner">Owner only</option><option value="test">Test only</option><option value="all">All traffic — includes owner/test</option></select></label>
+        <button className={styles.primary} type="submit" disabled={state === "loading"}>Apply filters</button>
+      </div>
+      <details className={styles.advancedFilters}><summary>More filters <span>Source, campaign, project & environment</span></summary><div className={styles.filterRow}>
+        <label>Source<input value={filters.source} maxLength={80} pattern="[a-zA-Z0-9._~-]+" list="analytics-sources" placeholder="All sources" onChange={(event) => updateFilter("source", event.target.value)} /></label>
+        <label>Campaign<input value={filters.campaign} maxLength={80} pattern="[a-zA-Z0-9._~-]+" list="analytics-campaigns" placeholder="All campaigns" onChange={(event) => updateFilter("campaign", event.target.value)} /></label>
+        <label className={styles.projectFilter}>Project<select value={filters.project} onChange={(event) => updateFilter("project", event.target.value)}><option value="">All projects and pages</option>{PROJECT_IDS.map((value) => <option key={value} value={value}>{value.replaceAll("-", " ")}</option>)}</select></label>
+        <label>Environment<select value={filters.environment} onChange={(event) => updateFilter("environment", event.target.value as Filters["environment"])}>{ENVIRONMENTS.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+      </div></details>
       <datalist id="analytics-sources">{report?.sources.filter((row) => /^[a-zA-Z0-9._~-]+$/.test(row.label)).map((row) => <option key={row.label} value={row.label} />)}</datalist>
       <datalist id="analytics-campaigns">{report?.campaigns.filter((row) => row.label !== "untagged" && /^[a-zA-Z0-9._~-]+$/.test(row.label)).map((row) => <option key={row.label} value={row.label} />)}</datalist>
       {formError && <p className={styles.formError} role="alert">{formError}</p>}
     </form>
-    {state === "loading" && <section className={styles.message} role="status" aria-live="polite"><h2>Loading analytics…</h2><p>Reading matching persisted events.</p></section>}
+    {state === "loading" && <section className={styles.message} role="status" aria-live="polite"><div className={styles.loadingMarks} aria-hidden="true"><i /><i /><i /></div><h2>Loading analytics…</h2><p>Reading matching persisted events.</p></section>}
     {state === "expired" && <section className={styles.message} role="alert"><h2>Access expired or denied</h2><p>Sign in again to view analytics. No analytics is displayed.</p><button onClick={() => window.location.reload()}>Sign in again</button></section>}
     {state === "error" && <section className={styles.message} role="alert"><h2>Analytics unavailable</h2><p>{error}</p><button onClick={() => { try { requestReport(dashboardFilterQuery(filters)); } catch { setFormError("Choose valid dates before retrying."); } }}>Retry</button></section>}
     {state === "ready" && report && <>
       <section className={styles.reportHeader} aria-label="Report details">
-        <div><p>Applied window: {utc(report.filters.from)} → {utc(report.filters.to)} (end exclusive)</p><p className={styles.muted}>{report.filters.environment} · {report.filters.traffic} · Source: {report.filters.source || "all"} · Campaign: {report.filters.campaign || "all"} · Project: {report.filters.project || "all"}</p><p className={styles.muted}>Last matching ingestion: {utc(report.summary.freshness)} · Generated: {utc(report.generatedAt)}</p></div>
-        <button onClick={() => void exportEvents()} disabled={exportState === "loading"}>{exportState === "loading" ? "Preparing export…" : "Export matching events"}</button>
+        <div><p><strong>{report.filters.from.slice(0, 10)} — {new Date(Date.parse(report.filters.to) - 1).toISOString().slice(0, 10)}</strong><span className={styles.cohort}>{report.filters.traffic === "visitor" ? "Visitor traffic" : `${report.filters.traffic} traffic`}</span></p><p className={styles.muted}>Applied filters · {report.filters.environment}{report.filters.source ? ` · ${report.filters.source}` : ""}{report.filters.campaign ? ` · ${report.filters.campaign}` : ""}{report.filters.project ? ` · ${report.filters.project}` : ""} · UTC</p></div>
+        <button onClick={() => void exportEvents()} disabled={exportState === "loading"}>{exportState === "loading" ? "Preparing export…" : "Export matching events"} <span aria-hidden="true">↓</span></button>
       </section>
       {exportMessage && <p className={styles.notice} role="status">{exportMessage}</p>}
-      {report.sourceMetadata && <section className={styles.notice} aria-label="Tracker source status">
-        <p>Existing Google tracker · fetched {utc(report.sourceMetadata.fetchedAt)} · {report.sourceMetadata.totalRows.toLocaleString("en-US")} source rows.</p>
-        {report.sourceMetadata.warnings.map((warning) => <p key={warning}>{warning}</p>)}
-      </section>}
-      {report.definitions.partialData && <p className={styles.notice}>{report.definitions.partialData}</p>}
-      <dl className={styles.metrics}>
+      <dl className={styles.metrics} aria-label="Portfolio overview">
         {[
-          ["Sessions", report.summary.sessions.toLocaleString("en-US")],
-          ["Page views", report.summary.pageViews.toLocaleString("en-US")],
-          ["Clicks", report.summary.clicks.toLocaleString("en-US")],
-          ...(intervalAvailable ? [["Active time (interval deltas)", activeTime(report.summary.activeMs)]] : []),
-          ...(!intervalAvailable || report.summary.legacyActiveMs > 0 ? [["Tracked active time (session maxima)", activeTime(report.summary.legacyActiveMs)]] : []),
-          ["Events", report.summary.events.toLocaleString("en-US")],
-          ["Recipient-link sessions", report.summary.attributedSessions.toLocaleString("en-US")],
-        ].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+          { label: "Sessions", value: report.summary.sessions.toLocaleString("en-US"), note: "Visits, not unique people", icon: "◉", tone: "blue" },
+          { label: "Page views", value: report.summary.pageViews.toLocaleString("en-US"), note: "Pages opened across visits", icon: "▤", tone: "violet" },
+          { label: "Clicks", value: report.summary.clicks.toLocaleString("en-US"), note: "Recorded link & button clicks", icon: "↗", tone: "teal" },
+          { label: intervalAvailable ? "Active time" : "Tracked time", value: activeTime(intervalAvailable ? report.summary.activeMs : report.summary.legacyActiveMs), note: intervalAvailable ? "Focused, recently active time" : "Tracked time, not proof of attention", icon: "◷", tone: "amber" },
+        ].map(metric => <div key={metric.label} data-tone={metric.tone}><span className={styles.metricIcon} aria-hidden="true">{metric.icon}</span><dt>{metric.label}</dt><dd>{metric.value}</dd><p>{metric.note}</p></div>)}
       </dl>
-      {(!intervalAvailable || report.summary.legacyActiveMs > 0) && <section className={styles.panel} aria-label="Tracked active time coverage">
-        <h2>Tracked active time coverage</h2>
-        <p className={styles.muted}>This sums the largest tracked value in each matching session. Historical visible-tab timing can include idle time; newer tracking requires focus and recent input. A filtered session maximum may include earlier session activity. These values do not prove attention.</p>
-        {!intervalAvailable && <p className={styles.muted}>Interval active-time deltas are unavailable for this tracker source, so they are omitted from summaries, breakdowns and journeys.</p>}
-      </section>}
-      {report.summary.events === 0 ? <section className={styles.message} role="status">
+      {needsAttention && <a className={styles.attentionBanner} href="#data-health"><span aria-hidden="true">!</span><div><strong>Some data needs a closer look</strong><p>Source warnings or held rows may affect this report. Review data status below.</p></div><span aria-hidden="true">↘</span></a>}
+      {report.summary.events === 0 ? <section className={styles.message} role="status"><span className={styles.emptyIcon} aria-hidden="true">◌</span>
         <h2>{hasNarrowingFilter ? "No matching results" : "No traffic in this window"}</h2>
         <p>{hasNarrowingFilter ? "Clear a source, campaign or project filter, or choose another UTC date range." : "No persisted events match this environment, traffic cohort and UTC date range."}</p>
       </section> : <>
-        {(report.sessionsTruncated || report.sessions.some((session) => session.eventsTruncated)) && <p className={styles.notice}>Partial journeys: the view is limited to 100 sessions and 500 matching events per session. Summary totals include all matching events.</p>}
         <section className={styles.visuals} aria-label="Activity comparisons">
-          <div className={styles.sectionHeading}><h2>Where activity happens</h2><p className={styles.muted}>Compare the leading pages, projects and sources in the applied filters. Bars show event counts, not unique people.</p></div>
+          <div className={styles.sectionHeading}><div><p className={styles.eyebrow}>THE BIG PICTURE</p><h2>How your portfolio is being explored</h2></div><p className={styles.muted}>Your selected window, brought into focus.</p></div>
+          <div className={styles.overviewCharts}><ActivityChart days={report.dailyActivity} /><SourceChart rows={report.sources} totalEvents={report.summary.events} /></div>
           <div className={styles.chartGrid}>
-            <BreakdownChart title="Top pages" rows={report.pages} />
-            <BreakdownChart title="Top projects" rows={report.projects} />
-            <BreakdownChart title="Top sources" rows={report.sources} />
+            <BreakdownChart title="Top pages" rows={report.pages} metric="pageViews" tone="blue" formatLabel={displayLabel} />
+            <BreakdownChart title="Top projects" rows={report.projects} tone="violet" formatLabel={displayLabel} />
+            <BreakdownChart title="Top click targets" rows={report.targets} metric="clicks" tone="teal" formatLabel={displayLabel} />
+          </div>
+          <p className={styles.chartContext}>Page rankings show page views; project bars show event counts, not unique people. Click targets show recorded clicks.</p>
+        </section>
+        <section id="breakdowns" aria-label="Detailed breakdowns" className={styles.detailSection}>
+          <div className={styles.sectionHeading}><div><p className={styles.eyebrow}>LOOK A LITTLE CLOSER</p><h2>Detailed breakdowns</h2></div><p className={styles.muted}>The numbers behind the graphs.</p></div>
+          <p className={styles.muted}>Each breakdown displays up to 100 groups. Sessions can appear in multiple groups; do not add group counts to infer unique people.</p>
+          <div className={styles.breakdownTabs} role="group" aria-label="Breakdown categories">
+            <BreakdownTable title="Pages" rows={report.pages} intervalAvailable={intervalAvailable} />
+            <BreakdownTable title="Projects" rows={report.projects} intervalAvailable={intervalAvailable} />
+            <BreakdownTable title="Sources" rows={report.sources} intervalAvailable={intervalAvailable} />
+            <BreakdownTable title="Campaigns" rows={report.campaigns} intervalAvailable={intervalAvailable} />
+            <BreakdownTable title="Click and navigation targets" rows={report.targets} intervalAvailable={intervalAvailable} />
           </div>
         </section>
-        <section className={styles.journeys} aria-label="Session journeys"><div className={styles.sectionHeading}><h2>Session journeys</h2><p className={styles.muted}>Only events matching the applied filters are shown. Coded links establish link usage, not visitor identity. Open a card for its events.</p></div><div className={styles.sessionGrid}>{report.sessions.map((session) => <SessionDetails key={`${session.origin}:${session.sessionId}`} session={session} intervalAvailable={intervalAvailable} />)}</div></section>
-        <div className={styles.sectionHeading}><h2>Detailed breakdowns</h2><p className={styles.muted}>Each breakdown displays up to 100 groups. Sessions can appear in multiple groups; do not add group counts to infer unique people.</p></div>
-        <div className={styles.breakdowns}>
-          <BreakdownTable title="Sources" rows={report.sources} intervalAvailable={intervalAvailable} /><BreakdownTable title="Campaigns" rows={report.campaigns} intervalAvailable={intervalAvailable} />
-          <BreakdownTable title="Projects" rows={report.projects} intervalAvailable={intervalAvailable} /><BreakdownTable title="Pages" rows={report.pages} intervalAvailable={intervalAvailable} />
-        </div>
-        <BreakdownTable title="Click and navigation targets" rows={report.targets} intervalAvailable={intervalAvailable} />
       </>}
-      <section className={styles.definitions} aria-label="Metric definitions"><h2>Definitions and coverage</h2><dl>{Object.entries(report.definitions).map(([term, definition]) => <div key={term}><dt>{term}</dt><dd>{definition}</dd></div>)}</dl><p>Anonymous sessions are not verified people. Consent, blockers, offline failures and retention can leave gaps. Legacy imported active time may include idle visible-tab time.</p></section>
+      <section className={styles.health} id="data-health" aria-label="Tracker source status">
+        <div className={styles.sectionHeading}><div><p className={styles.eyebrow}>KNOW WHAT YOU’RE LOOKING AT</p><h2>Data status</h2></div><span className={needsAttention ? styles.warningBadge : styles.statusBadge}>{needsAttention ? "Review recommended" : "Report loaded"}</span></div>
+        <div className={styles.healthGrid}>
+          <div><span className={styles.statusDot} aria-hidden="true" /><strong>Existing Google tracker</strong><p className={styles.muted}>Fetched {utc(report.sourceMetadata?.fetchedAt || report.generatedAt)}</p><p className={styles.muted}>Last matching ingestion: {utc(report.summary.freshness)}</p><p className={styles.muted}>A successful read confirms this report loaded. It does not verify that every visit was captured or that the website is error-free.</p></div>
+          <dl className={styles.qualityMetrics}><div><dt>Source rows</dt><dd>{report.sourceMetadata ? report.sourceMetadata.totalRows.toLocaleString("en-US") : "Unavailable"}</dd></div><div><dt>Held for review</dt><dd>{report.sourceMetadata ? report.sourceMetadata.heldRows.toLocaleString("en-US") : "Unavailable"}</dd></div><div><dt>Duplicates excluded</dt><dd>{report.sourceMetadata ? report.sourceMetadata.duplicateRows.toLocaleString("en-US") : "Unavailable"}</dd></div></dl>
+        </div>
+        {warnings.map(warning => <p className={styles.notice} key={warning}>{warning}</p>)}
+        {!warnings.length && <p className={styles.coverageNote}>No source warnings were returned. Consent, blockers and offline visits can still leave gaps.</p>}
+        {(!intervalAvailable || report.summary.legacyActiveMs > 0) && <details className={styles.coverage} aria-label="Tracked active time coverage"><summary>How to read tracked time</summary><p>Historical visible-tab timing can include idle time; newer tracking requires focus and recent input. This sums the largest tracked value in each matching session. A filtered session maximum may include earlier session activity. These values do not prove attention.</p>{!intervalAvailable && <p>Interval active-time deltas are unavailable for this tracker source, so they are omitted from summaries, breakdowns and journeys.</p>}</details>}
+      </section>
+      {report.summary.events > 0 && <section className={styles.journeys} id="journeys" aria-label="Session journeys"><div className={styles.sectionHeading}><div><p className={styles.eyebrow}>OPTIONAL DEEP DIVE</p><h2>Session journeys</h2></div><span className={styles.smallBadge}>{report.sessions.length}{report.sessionsTruncated ? "+" : ""} in this view</span></div><p className={styles.muted}>Open a session to follow its matching events. Coded links establish link usage, not visitor identity.</p>
+        {(report.sessionsTruncated || report.sessions.some(session => session.eventsTruncated)) && <p className={styles.notice}>Partial journeys: the view is limited to 100 sessions and 500 matching events per session. Summary totals include all matching events.</p>}
+        {!report.sessions.length ? <p className={styles.coverageNote}>No session journeys are available for these recorded events.</p> : <div className={styles.sessionGrid}>{shownSessions?.map(session => <SessionDetails key={`${session.origin}:${session.sessionId}`} session={session} intervalAvailable={intervalAvailable} />)}</div>}
+        {report.sessions.length > 6 && <button className={styles.showMore} onClick={() => setShowAllSessions(value => !value)}>{showAllSessions ? "Show fewer sessions" : `Show all ${report.sessions.length} sessions`}</button>}
+      </section>}
+      <details className={styles.definitions} aria-label="Metric definitions"><summary>Definitions and coverage</summary><dl><div><dt>Recipient-link sessions</dt><dd>{report.summary.attributedSessions.toLocaleString("en-US")} — identifies coded link usage, not a verified person.</dd></div>{Object.entries(report.definitions).map(([term, definition]) => <div key={term}><dt>{term}</dt><dd>{definition}</dd></div>)}</dl><p>Anonymous sessions are not verified people. Consent, blockers, offline failures and retention can leave gaps. Legacy imported active time may include idle visible-tab time.</p></details>
+      <footer className={styles.footer}>Made for a little more clarity.<span>Portfolio owner workspace · All times UTC</span></footer>
     </>}
+    </div>
   </section>;
 }

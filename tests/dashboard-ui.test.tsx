@@ -60,7 +60,7 @@ describe("owner dashboard states and filters", () => {
       },
     })));
     render(<Dashboard />);
-    expect(await screen.findByText("Tracked active time (session maxima)")).toBeTruthy();
+    expect(await screen.findByText("Tracked time")).toBeTruthy();
     expect(screen.getByText("9s")).toBeTruthy();
     expect(screen.queryByText("1s")).toBeNull();
     expect(screen.queryByText("Active time (interval deltas)")).toBeNull();
@@ -92,7 +92,7 @@ describe("owner dashboard states and filters", () => {
       }],
     })));
     render(<Dashboard />);
-    await screen.findByText("Tracked active time (session maxima)");
+    await screen.findByText("Tracked time");
     expect(screen.queryByRole("columnheader", { name: "Active time (interval deltas)" })).toBeNull();
     const details = screen.getByText(/Anonymous session ·/).closest("details")!;
     details.open = true;
@@ -103,17 +103,49 @@ describe("owner dashboard states and filters", () => {
     expect(screen.queryByText("Active time (interval deltas)")).toBeNull();
   });
 
-  it("charts aggregate event counts independently of the capped journey sample", async () => {
+  it("charts aggregate page views independently of the capped journey sample", async () => {
     const aggregate = { label: "/projects/nexa", events: 201, sessions: 156, pageViews: 100, clicks: 20, activeMs: 0, maxScroll: 75 };
     fetchMock.mockResolvedValue(Response.json(report({
       summary: { ...report().summary, events: 201, sessions: 156 }, pages: [aggregate], sessionsTruncated: true,
     })));
     render(<Dashboard />);
     const chart = await screen.findByRole("figure", { name: /Top pages/ });
-    expect(within(chart).getByText("201")).toBeTruthy();
-    expect(within(chart).getByText("/projects/nexa")).toBeTruthy();
+    expect(within(chart).getByText("100")).toBeTruthy();
+    expect(within(chart).getByTitle("/projects/nexa")).toBeTruthy();
     expect(screen.getByText(/Partial journeys: the view is limited/)).toBeTruthy();
-    expect(screen.getByText(/Bars show event counts, not unique people/)).toBeTruthy();
+    expect(screen.getByText(/project bars show event counts, not unique people/)).toBeTruthy();
+  });
+
+  it("puts aggregate breakdowns before journeys and flags source issues without promising site health", async () => {
+    fetchMock.mockResolvedValue(Response.json(report({
+      summary: { ...report().summary, events: 1, pageViews: 1 },
+      sourceMetadata: { backend: "google-sheets", fetchedAt: "2026-11-10T12:00:00.000Z", sourceFreshness: null, totalRows: 3, heldRows: 1, duplicateRows: 1, warnings: [] },
+    })));
+    const { container } = render(<Dashboard />);
+    await screen.findByText("Review recommended");
+    const breakdowns = screen.getByRole("region", { name: "Detailed breakdowns" });
+    const journeys = screen.getByRole("region", { name: "Session journeys" });
+    expect(breakdowns.compareDocumentPosition(journeys) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText(/does not verify that every visit was captured/)).toBeTruthy();
+    expect(screen.getByText("Some data needs a closer look")).toBeTruthy();
+    expect(container.querySelectorAll('details[open]')).toHaveLength(0);
+    expect(screen.getByText("Daily activity is unavailable for this report. The breakdowns below still show recorded totals.")).toBeTruthy();
+  });
+
+  it("applies a quick date window and preserves the selected cohort", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-10T14:00:00.000Z"));
+    fetchMock.mockResolvedValue(Response.json(report()));
+    render(<Dashboard />);
+    await screen.findByText("No traffic in this window");
+    fireEvent.change(screen.getByLabelText("Traffic"), { target: { value: "test" } });
+    fireEvent.click(screen.getByRole("button", { name: "Last 7 days" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const query = new URL(String(fetchMock.mock.calls[1][0]), "https://test.invalid").searchParams;
+    expect(query.get("from")).toBe("2026-11-04T00:00:00.000Z");
+    expect(query.get("to")).toBe("2026-11-11T00:00:00.000Z");
+    expect(query.get("traffic")).toBe("test");
+    vi.useRealTimers();
   });
 
   it("preserves edited filters through backend failure and retry", async () => {

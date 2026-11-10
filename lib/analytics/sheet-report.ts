@@ -1,6 +1,6 @@
 import type { SheetDataset } from "./sheets";
 import type { StoredEvent } from "./schema";
-import { ReportFiltersSchema, REPORT_DEFINITIONS, type AnalyticsReport, type Breakdown, type ReportFilters, type SessionJourney } from "./queries";
+import { ReportFiltersSchema, REPORT_DEFINITIONS, type AnalyticsReport, type Breakdown, type DailyActivity, type ReportFilters, type SessionJourney } from "./queries";
 
 const key = (event: StoredEvent) => JSON.stringify([event.origin, event.sessionId]);
 export function matchingSheetEvents(dataset: SheetDataset, input: unknown): { filters: ReportFilters; events: StoredEvent[] } {
@@ -15,6 +15,23 @@ function groups(events: StoredEvent[], label: (event: StoredEvent) => string): B
   const grouped = new Map<string, StoredEvent[]>();
   for (const event of events) { const name = label(event); const list = grouped.get(name) || []; list.push(event); grouped.set(name, list); }
   return [...grouped].map(([name, entries]) => ({ label: name, ...aggregate(entries) })).sort((a, b) => b.events - a.events || a.label.localeCompare(b.label)).slice(0, 100);
+}
+function dailyActivity(events: StoredEvent[], filters: ReportFilters): DailyActivity[] {
+  const days = new Map<string, DailyActivity>();
+  const firstDay = new Date(filters.from);
+  firstDay.setUTCHours(0, 0, 0, 0);
+  for (let day = firstDay.getTime(); day < Date.parse(filters.to); day += 86_400_000) {
+    const date = new Date(day).toISOString().slice(0, 10);
+    days.set(date, { date, pageViews: 0, clicks: 0, events: 0 });
+  }
+  for (const event of events) {
+    const day = days.get(new Date(event.occurredAt).toISOString().slice(0, 10));
+    if (!day) continue;
+    day.events += 1;
+    if (event.type === "page_view") day.pageViews += 1;
+    if (event.type === "click") day.clicks += 1;
+  }
+  return [...days.values()];
 }
 export function sheetAnalyticsReport(dataset: SheetDataset, input: unknown): AnalyticsReport {
   const { filters, events } = matchingSheetEvents(dataset, input);
@@ -33,6 +50,7 @@ export function sheetAnalyticsReport(dataset: SheetDataset, input: unknown): Ana
   const freshness = events.reduce<string | null>((latest, event) => event.sourceReceivedAt && (!latest || event.sourceReceivedAt > latest) ? event.sourceReceivedAt : latest, null);
   return {
     filters, summary: { ...totals, legacyActiveMs, attributedSessions: journeys.filter((session) => session.attribution === "recipient-link").length, freshness },
+    dailyActivity: dailyActivity(events, filters),
     sources: groups(events, (event) => event.attribution?.source || "direct / untagged"), campaigns: groups(events, (event) => event.attribution?.campaign || "untagged"), projects: groups(events, (event) => event.projectId || "non-project pages"), pages: groups(events, (event) => event.route), targets: groups(events.filter((event) => event.targetId), (event) => event.targetId!), sessions: journeys.slice(0, 100), sessionsTruncated: journeys.length > 100, generatedAt: dataset.fetchedAt,
     definitions: { ...REPORT_DEFINITIONS, activeMs: "Interval active-time values are unavailable in this tracker source. They are not represented as zero attention.", legacyActiveMs: "Tracked active time sums each session’s largest stored cumulative value. Historical visible-tab timing can include idle time; the newer collector requires focus and recent input. A filtered window may include earlier activity within those sessions. These maxima do not prove attention.", freshness: "Newest original tracker receipt in the selected cohort. This dashboard reads the existing persistent Google Sheet; latest fetch time does not prove all visits were captured.", source: "Existing Google tracker. Original event/session IDs are retained. UTC conversion uses the configured source timezone; tracked time remains cumulative session maxima.", ...(dataset.warnings.length ? { partialData: dataset.warnings.join(" ") } : {}) },
     sourceMetadata: { backend: "google-sheets", fetchedAt: dataset.fetchedAt, sourceFreshness: dataset.sourceFreshness, totalRows: dataset.rowCount, heldRows: dataset.heldRows, duplicateRows: dataset.duplicateRows, warnings: dataset.warnings },
