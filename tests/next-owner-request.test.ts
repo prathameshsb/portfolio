@@ -44,4 +44,10 @@ describe('Netlify Next request boundary', () => {
     const original = request();
     expect(ownerAdapterRequest(original, { ...env, NETLIFY: 'false' })).toBe(original);
   });
+  it('recognizes the read-only SITE_ID available to deployed functions', async () => {
+    const runtime = { ...env, NETLIFY: undefined, SITE_ID: '11111111-1111-4111-8111-111111111111' };
+    const normalized = ownerAdapterRequest(request(), runtime)!;
+    expect(normalized.url).toBe(`${origin}/api/owner/report?traffic=test`);
+    expect(await authorize(normalized)).toMatchObject({ status: 'authorized' });
+  });
 });

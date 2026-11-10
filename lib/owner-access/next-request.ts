@@ -1,7 +1,8 @@
 import { ownerConfig, type OwnerEnvironment } from './core';
 
 export function ownerAdapterRequest(request: Request, environment: OwnerEnvironment): Request | undefined {
-  if (environment.NETLIFY !== 'true') return request;
+  const deployedSite = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(environment.SITE_ID || '');
+  if (environment.NETLIFY !== 'true' && !deployedSite) return request;
   const config = ownerConfig(environment);
   if (!config) return request;
   const canonical = new URL(config.origin);
