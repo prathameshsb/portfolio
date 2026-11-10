@@ -8,6 +8,9 @@ NODE_VERSION = "24"
 [functions]
 node_bundler = "esbuild"
 
+[[plugins]]
+package = "@netlify/plugin-nextjs"
+
 [context.deploy-preview.environment]
 NEXT_PUBLIC_ANALYTICS_ENABLED = "false"
 
